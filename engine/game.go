@@ -201,6 +201,12 @@ func (g *Game) Draw(screen *ebiten.Image) {
 				}
 			}
 		}
+
+		skullOp := &ebiten.DrawImageOptions{}
+		skullOp.GeoM.Scale(2, 2)
+		
+		skullOp.GeoM.Translate((screenWidth/2)-40, screenHeight-70)
+		g.view.DrawImage(GetEbitenImage(images.Images_Fist), skullOp)
 	} else {
 		// render the menu
 		g.menu.Render(screen)
