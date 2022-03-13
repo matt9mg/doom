@@ -2,8 +2,10 @@ package engine
 
 import (
 	"fmt"
+	"github.com/hajimehoshi/ebiten/v2/inpututil"
 	"image"
 	"image/color"
+	"log"
 	"math"
 	"sync"
 
@@ -289,6 +291,7 @@ func (c *Camera) castLevel(x int, grid [][]int, lvl *Level, levelNum int, wg *sy
 
 	//perform DDA
 	for hit == 0 {
+
 		//jump to next map square, OR in x-direction, OR in y-direction
 		if sideDistX < sideDistY {
 			sideDistX += deltaDistX
@@ -300,8 +303,18 @@ func (c *Camera) castLevel(x int, grid [][]int, lvl *Level, levelNum int, wg *sy
 			side = 1
 		}
 
-		//Check if ray has hit a wall
-		if mapX < c.mapWidth && mapY < c.mapHeight && mapX > 0 && mapY > 0 {
+		// we are at a door if we try to open it then remove the door
+		if grid[mapX][mapY] == 6 && inpututil.IsKeyJustPressed(ebiten.KeyO) {
+			log.Println("Opening Door")
+			DoorSound.Rewind()
+			DoorSound.Play()
+			grid[mapX][mapY] = 0
+			c.worldMap[mapX][mapY] = grid[mapX][mapY]
+			hit = 0
+
+			// rebuild the collision matrix
+			c.collisionMap = c.mapObj.getCollisionLines()
+		} else if grid[mapX][mapY] != 6 &&  mapX < c.mapWidth && mapY < c.mapHeight && mapX > 0 && mapY > 0 {
 			if grid[mapX][mapY] > 0 {
 				hit = 1
 			}
@@ -720,6 +733,7 @@ func (c *Camera) getValidMove(moveX, moveY float64, checkAlternate bool) (float6
 	intersectPoints := [][2]float64{}
 	for _, borderLine := range c.collisionMap {
 		// TODO: only check intersection of nearby wall cells instead of all of them
+
 		if px, py, ok := Intersection(moveLine, borderLine); ok {
 			intersectPoints = append(intersectPoints, [2]float64{px, py})
 		}

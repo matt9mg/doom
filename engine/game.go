@@ -6,14 +6,9 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/audio"
 	"github.com/hajimehoshi/ebiten/v2/audio/mp3"
-	"github.com/hajimehoshi/ebiten/v2/audio/wav"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
-	"github.com/hajimehoshi/ebiten/v2/inpututil"
-	"github.com/matt9mg/doom/fonts"
 	"github.com/matt9mg/doom/images"
 	"github.com/matt9mg/doom/music"
-	"golang.org/x/image/font"
-	"golang.org/x/image/font/opentype"
 	"image"
 	"image/color"
 	"log"
@@ -21,7 +16,7 @@ import (
 	"math/rand"
 	"path/filepath"
 	"runtime"
-	"time"
+	_ "image/jpeg"
 )
 
 type Mode int
@@ -33,16 +28,18 @@ const (
 	fontSize     = 72
 	screenScale  = 1.0
 	texSize      = 256
+	dpi          = 72
+)
+
+var (
+	audioContext = audio.NewContext(sampleRate)
 )
 
 type Game struct {
 	player       *audio.Player
 	audioContext *audio.Context
 	mode         Mode
-	oof          *audio.Player
-	door         *audio.Player
-	fucked       *audio.Player
-	pussy        *audio.Player
+
 	leve1Map1    *audio.Player
 
 	floor *ebiten.Image
@@ -77,49 +74,6 @@ type Game struct {
 	menu *MainMenu
 }
 
-var (
-	arcadeFont   font.Face
-	audioContext = audio.NewContext(sampleRate)
-)
-
-func (s *SpriteBatch) draw(texture *ebiten.Image, destinationRectangle *image.Rectangle, sourceRectangle *image.Rectangle, color *color.RGBA) {
-	if texture == nil || destinationRectangle == nil || sourceRectangle == nil {
-		return
-	}
-
-	if sourceRectangle.Min.X == 0 {
-		// fixes subImage from clipping at edges of textures which can cause gaps
-		sourceRectangle.Min.X++
-		sourceRectangle.Max.X++
-	}
-
-	// if destinationRectangle is not the same size as sourceRectangle, scale to fit
-	var scaleX, scaleY float64 = 1.0, 1.0
-	if !destinationRectangle.Eq(*sourceRectangle) {
-		sSize := sourceRectangle.Size()
-		dSize := destinationRectangle.Size()
-
-		scaleX = float64(dSize.X) / float64(sSize.X)
-		scaleY = float64(dSize.Y) / float64(sSize.Y)
-	}
-
-	op := &ebiten.DrawImageOptions{}
-	op.Filter = ebiten.FilterLinear
-
-	op.GeoM.Scale(scaleX, scaleY)
-	op.GeoM.Translate(float64(destinationRectangle.Min.X), float64(destinationRectangle.Min.Y))
-
-	destTexture := texture.SubImage(*sourceRectangle).(*ebiten.Image)
-
-	if color != nil {
-		// color channel modulation/tinting
-		op.ColorM.Scale(float64(color.R)/255, float64(color.G)/255, float64(color.B)/255, float64(color.A)/255)
-	}
-
-	view := s.g.view
-	view.DrawImage(destTexture, op)
-}
-
 func NewGame() *Game {
 	g := &Game{}
 	g.init()
@@ -127,66 +81,8 @@ func NewGame() *Game {
 }
 
 func (g *Game) init() {
+	SetGameGlobals()
 	g.menu = NewMainMenu()
-
-	tt, err := opentype.Parse(fonts.Font_Doom)
-	if err != nil {
-		log.Fatal(err)
-	}
-	const dpi = 72
-
-	arcadeFont, err = opentype.NewFace(tt, &opentype.FaceOptions{
-		Size:    fontSize,
-		DPI:     dpi,
-		Hinting: font.HintingFull,
-	})
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	oof, err := wav.Decode(audioContext, bytes.NewReader(music.Music_Oof))
-
-	if err != nil {
-		panic(err)
-	}
-
-	g.oof, err = audioContext.NewPlayer(oof)
-	if err != nil {
-		panic(err)
-	}
-
-	door, err := wav.Decode(audioContext, bytes.NewReader(music.Music_Switch_On))
-
-	if err != nil {
-		panic(err)
-	}
-
-	g.door, err = audioContext.NewPlayer(door)
-	if err != nil {
-		panic(err)
-	}
-
-	fucked, err := wav.Decode(audioContext, bytes.NewReader(music.Music_Menu_Fucked))
-
-	if err != nil {
-		panic(err)
-	}
-
-	g.fucked, err = audioContext.NewPlayer(fucked)
-	if err != nil {
-		panic(err)
-	}
-
-	pussy, err := wav.Decode(audioContext, bytes.NewReader(music.Music_Menu_Pussy))
-
-	if err != nil {
-		panic(err)
-	}
-
-	g.pussy, err = audioContext.NewPlayer(pussy)
-	if err != nil {
-		panic(err)
-	}
 
 	// use scale to keep the desired window width and height
 	g.width = int(math.Floor(float64(screenWidth) / screenScale))
@@ -237,6 +133,137 @@ func (g *Game) init() {
 	}
 }
 
+func (g *Game) Update() error {
+	if level == 1 {
+		err := g.menu.IntroMusic.Close()
+		g.level1.Play()
+
+		if err != nil {
+			panic(err)
+		}
+		g.updateSprites()
+
+		// handle input
+		g.handleInput()
+	}
+
+	if level == 0 {
+		g.menu.HandleKeyPress()
+		//level = 1
+	}
+
+	return nil
+}
+
+func (g *Game) Draw(screen *ebiten.Image) {
+	g.view = screen
+	g.view.Clear()
+
+	if level == 1 {
+		g.camera.Update()
+
+		//--draw basic sky and floor--//
+		texRect := image.Rect(0, 0, texSize, texSize)
+		whiteRGBA := &color.RGBA{255, 255, 255, 255}
+
+		floorRect := image.Rect(0, int(float64(g.height)*0.5)+g.camera.GetPitch(),
+			g.width, 2*int(float64(g.height)*0.5)-g.camera.GetPitch())
+		g.spriteBatch.draw(g.floor, &floorRect, &texRect, whiteRGBA)
+
+		//--draw walls--//
+		for x := 0; x < g.width; x++ {
+			for i := cap(g.levels) - 1; i >= 0; i-- {
+				g.spriteBatch.draw(g.levels[i].CurrTex[x], g.levels[i].Sv[x], g.levels[i].Cts[x], g.levels[i].St[x])
+			}
+		}
+
+		// draw textured floor
+		floorImg := ebiten.NewImageFromImage(g.floorLvl.HorBuffer)
+		if floorImg == nil {
+			log.Fatal("floorImg is nil")
+		} else {
+			op := &ebiten.DrawImageOptions{}
+			op.Filter = ebiten.FilterLinear
+			g.view.DrawImage(floorImg, op)
+		}
+
+		// draw sprites
+		for x := 0; x < g.width; x++ {
+			for i := 0; i < cap(g.spriteLvls); i++ {
+				spriteLvl := g.spriteLvls[i]
+				if spriteLvl == nil {
+					continue
+				}
+
+				texture := spriteLvl.CurrTex[x]
+				if texture != nil {
+					g.spriteBatch.draw(texture, spriteLvl.Sv[x], spriteLvl.Cts[x], spriteLvl.St[x])
+				}
+			}
+		}
+	} else {
+		// render the menu
+		g.menu.Render(screen)
+	}
+}
+
+func (g *Game) Layout(outsideWidth, outsideHeight int) (int, int) {
+	return screenWidth, screenHeight
+}
+
+func Play() {
+	// need to set some runtime vars
+	numCPU := runtime.NumCPU()
+	maxProcs := runtime.GOMAXPROCS(numCPU)
+	runtime.GOMAXPROCS(maxProcs)
+
+	ebiten.SetWindowSize(screenWidth, screenHeight)
+	ebiten.SetWindowTitle("Doom MT")
+	if err := ebiten.RunGame(NewGame()); err != nil {
+		log.Fatal(err)
+	}
+}
+
+
+func (s *SpriteBatch) draw(texture *ebiten.Image, destinationRectangle *image.Rectangle, sourceRectangle *image.Rectangle, color *color.RGBA) {
+	if texture == nil || destinationRectangle == nil || sourceRectangle == nil {
+		return
+	}
+
+	if sourceRectangle.Min.X == 0 {
+		// fixes subImage from clipping at edges of textures which can cause gaps
+		sourceRectangle.Min.X++
+		sourceRectangle.Max.X++
+	}
+
+	// if destinationRectangle is not the same size as sourceRectangle, scale to fit
+	var scaleX, scaleY float64 = 1.0, 1.0
+	if !destinationRectangle.Eq(*sourceRectangle) {
+		sSize := sourceRectangle.Size()
+		dSize := destinationRectangle.Size()
+
+		scaleX = float64(dSize.X) / float64(sSize.X)
+		scaleY = float64(dSize.Y) / float64(sSize.Y)
+	}
+
+	op := &ebiten.DrawImageOptions{}
+	op.Filter = ebiten.FilterLinear
+
+	op.GeoM.Scale(scaleX, scaleY)
+	op.GeoM.Translate(float64(destinationRectangle.Min.X), float64(destinationRectangle.Min.Y))
+
+	destTexture := texture.SubImage(*sourceRectangle).(*ebiten.Image)
+
+	if color != nil {
+		// color channel modulation/tinting
+		op.ColorM.Scale(float64(color.R)/255, float64(color.G)/255, float64(color.B)/255, float64(color.A)/255)
+	}
+
+	view := s.g.view
+	view.DrawImage(destTexture, op)
+}
+
+
 func (g *Game) createSpriteLevels() []*Level {
 	// create empty "level" for all sprites to render using similar slice methods as walls
 	numSprites := g.mapObj.GetNumSprites()
@@ -257,25 +284,26 @@ func (g *Game) loadContent() {
 	g.spriteBatch = &SpriteBatch{g: g}
 
 	// TODO: use loadContent to load your game content here
-	g.tex.Textures = make([]*ebiten.Image, 15)
+	g.tex.Textures = make([]*ebiten.Image, 16)
 
 	g.spriteBatch = &SpriteBatch{g: g}
 
 	// TODO: use loadContent to load your game content here
-	g.tex.Textures = make([]*ebiten.Image, 15)
+	g.tex.Textures = make([]*ebiten.Image, 16)
 
-	g.tex.Textures[0] = getTextureFromFile("stone.png")
+	g.tex.Textures[0] = getTextureFromFile("wall.png")
 	g.tex.Textures[1] = getTextureFromFile("left_bot_house.png")
 	g.tex.Textures[2] = getTextureFromFile("right_bot_house.png")
 	g.tex.Textures[3] = getTextureFromFile("left_top_house.png")
 	g.tex.Textures[4] = getTextureFromFile("right_top_house.png")
+	g.tex.Textures[5] = getTextureFromFile("door.png")
 
 	// separating sprites out a bit from wall textures
 	g.tex.Textures[9] = getSpriteFromFile("tree_09.png")
 	g.tex.Textures[10] = getSpriteFromFile("tree_10.png")
 	g.tex.Textures[14] = getSpriteFromFile("tree_14.png")
 
-	//g.tex.Textures[15] = getSpriteFromFile("sorcerer_sheet.png")
+	g.tex.Textures[15] = getSpriteFromFile("mt.png")
 
 	// just setting the grass texture apart from the rest since it gets special handling
 	g.floorLvl.TexRGBA = make([]*image.NRGBA, 1)
@@ -298,7 +326,7 @@ func getNRGBAFromFile(texFile string) *image.NRGBA {
 	}
 	if tex != nil {
 		rgba = image.NewNRGBA(image.Rect(0, 0, texSize, texSize))
-		// convert into RGBA format
+		// convert into NRGBA format
 		for x := 0; x < texSize; x++ {
 			for y := 0; y < texSize; y++ {
 				clr := tex.At(x, y).(color.NRGBA)
@@ -346,71 +374,6 @@ func (g *Game) createLevels(numLevels int) ([]*Level, *HorLevel) {
 	return levelArr, horizontalLevel
 }
 
-func (g *Game) isKeyPresses() bool {
-	if inpututil.IsKeyJustPressed(ebiten.KeyUp) || inpututil.IsKeyJustPressed(ebiten.KeyDown) {
-		return true
-	}
-
-	return false
-}
-
-var level = 0
-
-func (g *Game) Update() error {
-	if level == 1 {
-		err := g.menu.IntroMusic.Close()
-		g.level1.Play()
-
-		if err != nil {
-			panic(err)
-		}
-		g.updateSprites()
-
-		// handle input
-		g.handleInput()
-	}
-
-	if level == 0 {
-		if inpututil.IsKeyJustPressed(ebiten.KeyUp) && skullPos > 1 {
-			skullPos -= 1
-			log.Println("key Pressed up redraw")
-			g.oof.Rewind()
-			g.oof.Play()
-		}
-
-		if inpututil.IsKeyJustPressed(ebiten.KeyDown) && skullPos < 4 {
-			skullPos += 1
-			log.Println("key Pressed down redraw")
-			g.oof.Rewind()
-			g.oof.Play()
-		}
-
-		if inpututil.IsKeyJustPressed(ebiten.KeyEnter) {
-			log.Println("Play game")
-			g.door.Rewind()
-			g.door.Play()
-
-			// add a little sleep time between playing sounds
-			time.Sleep(time.Second / 2)
-
-			if skullPos == 1 {
-				g.pussy.SetVolume(5.0)
-				g.pussy.Play()
-				time.Sleep(time.Second * 4)
-			}
-
-			if skullPos == 4 {
-				g.fucked.SetVolume(5.0)
-				g.fucked.Play()
-				time.Sleep(time.Second * 2)
-			}
-
-			level = 1
-		}
-	}
-
-	return nil
-}
 
 func (g *Game) handleInput() {
 	forward := false
@@ -595,75 +558,4 @@ func (g *Game) updateSprites() {
 
 func randFloat(min, max float64) float64 {
 	return min + rand.Float64()*(max-min)
-}
-
-func (g *Game) Draw(screen *ebiten.Image) {
-	g.view = screen
-	g.view.Clear()
-
-	if level == 1 {
-		g.camera.Update()
-
-		//--draw basic sky and floor--//
-		texRect := image.Rect(0, 0, texSize, texSize)
-		whiteRGBA := &color.RGBA{255, 255, 255, 255}
-
-		floorRect := image.Rect(0, int(float64(g.height)*0.5)+g.camera.GetPitch(),
-			g.width, 2*int(float64(g.height)*0.5)-g.camera.GetPitch())
-		g.spriteBatch.draw(g.floor, &floorRect, &texRect, whiteRGBA)
-
-		//--draw walls--//
-		for x := 0; x < g.width; x++ {
-			for i := cap(g.levels) - 1; i >= 0; i-- {
-				g.spriteBatch.draw(g.levels[i].CurrTex[x], g.levels[i].Sv[x], g.levels[i].Cts[x], g.levels[i].St[x])
-			}
-		}
-
-		// draw textured floor
-		floorImg := ebiten.NewImageFromImage(g.floorLvl.HorBuffer)
-		if floorImg == nil {
-			log.Fatal("floorImg is nil")
-		} else {
-			op := &ebiten.DrawImageOptions{}
-			op.Filter = ebiten.FilterLinear
-			g.view.DrawImage(floorImg, op)
-		}
-
-		// draw sprites
-		for x := 0; x < g.width; x++ {
-			for i := 0; i < cap(g.spriteLvls); i++ {
-				spriteLvl := g.spriteLvls[i]
-				if spriteLvl == nil {
-					continue
-				}
-
-				texture := spriteLvl.CurrTex[x]
-				if texture != nil {
-					g.spriteBatch.draw(texture, spriteLvl.Sv[x], spriteLvl.Cts[x], spriteLvl.St[x])
-				}
-			}
-		}
-	} else {
-		// render the menu
-		g.menu.Render(screen)
-	}
-}
-
-var skullPos = 1.0
-
-func (g *Game) Layout(outsideWidth, outsideHeight int) (int, int) {
-	return screenWidth, screenHeight
-}
-
-func Play() {
-	// need to set some runtime vars
-	numCPU := runtime.NumCPU()
-	maxProcs := runtime.GOMAXPROCS(numCPU)
-	runtime.GOMAXPROCS(maxProcs)
-
-	ebiten.SetWindowSize(screenWidth, screenHeight)
-	ebiten.SetWindowTitle("Doom MT")
-	if err := ebiten.RunGame(NewGame()); err != nil {
-		log.Fatal(err)
-	}
 }

@@ -36,7 +36,7 @@ func NewMap(tex *TextureHandler) *Map {
 		{1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
 		{1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
 		{1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
-		{1, 0, 0, 1, 0, 0, 0, 0, 0, 1, 1, 0, 1, 1, 0, 0, 0, 0, 0, 1, 1, 0, 1, 1},
+		{1, 0, 0, 1, 0, 0, 0, 0, 0, 1, 1, 0, 1, 1, 0, 0, 0, 0, 0, 1, 1, 6, 1, 1},
 		{1, 0, 1, 0, 1, 0, 0, 0, 0, 1, 1, 0, 1, 1, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1},
 		{1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 1, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1},
 		{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
@@ -101,8 +101,8 @@ func NewMap(tex *TextureHandler) *Map {
 
 func (m *Map) LoadSprites() {
 	m.sprite = []*Sprite{
-		// // sorcerer
-		//NewAnimatedSprite(20, 11.5, 1.4, 5, m.tex.Textures[15], 10, 1, 256), // FIXME: 256 should come from g.texSize
+		// // Doom Creator
+		//NewAnimatedSprite(8, 11.5, 2, 5, m.tex.Textures[15], 5, 1, 256),
 
 		// // line of trees for testing in front of initial view
 		NewSprite(19.5, 11.5, m.tex.Textures[10], 256),
