@@ -7,6 +7,7 @@ import (
 	"github.com/hajimehoshi/ebiten/v2/audio"
 	"github.com/hajimehoshi/ebiten/v2/audio/mp3"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
+	"github.com/hajimehoshi/ebiten/v2/inpututil"
 	"github.com/matt9mg/doom/images"
 	"github.com/matt9mg/doom/music"
 	"image"
@@ -73,7 +74,7 @@ type Game struct {
 
 	menu *MainMenu
 
-	weapon *Weapon
+	weapons *Weapons
 }
 
 func NewGame() *Game {
@@ -134,7 +135,7 @@ func (g *Game) init() {
 		panic(err)
 	}
 
-	g.weapon = NewWeapon()
+	g.weapons = LoadWeapons()
 }
 
 func (g *Game) Update() error {
@@ -149,7 +150,16 @@ func (g *Game) Update() error {
 
 		// handle input
 		g.handleInput()
-		g.weapon.Update()
+
+		if inpututil.IsKeyJustPressed(ebiten.Key1) == true {
+			g.weapons.ChangeWeapon(1)
+		}
+
+		if inpututil.IsKeyJustPressed(ebiten.Key2) == true {
+			g.weapons.ChangeWeapon(2)
+		}
+
+		g.weapons.CurrentWeapon.Update()
 	}
 
 	if level == 0 {
@@ -209,7 +219,7 @@ func (g *Game) Draw(screen *ebiten.Image) {
 			}
 		}
 
-		g.weapon.RenderCurrentFrame(screen)
+		g.weapons.CurrentWeapon.RenderCurrentFrame(screen)
 	} else {
 		// render the menu
 		g.menu.Render(screen)

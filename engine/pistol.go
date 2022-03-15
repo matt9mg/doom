@@ -12,7 +12,7 @@ import (
 	"log"
 )
 
-type Weapon struct {
+type Pistol struct {
 	CurrenFramePosition int
 	MousePressed        bool
 	Frames              []*Frame
@@ -22,14 +22,7 @@ type Weapon struct {
 	Sound               *audio.Player
 }
 
-type Frame struct {
-	x0 int
-	y0 int
-	x1 int
-	y1 int
-}
-
-func NewWeapon() *Weapon {
+func NewPistol() *Pistol {
 	img, _, err := image.Decode(bytes.NewReader(images.Doom))
 	if err != nil {
 		log.Fatal(err)
@@ -46,7 +39,7 @@ func NewWeapon() *Weapon {
 		panic(err)
 	}
 
-	return &Weapon{
+	return &Pistol{
 		Sprite:              ebiten.NewImageFromImage(img),
 		CurrenFramePosition: 0,
 		MousePressed:        false,
@@ -88,7 +81,7 @@ func NewWeapon() *Weapon {
 	}
 }
 
-func (w *Weapon) Update() {
+func (w *Pistol) Update() {
 	if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
 		w.CurrenFramePosition++
 		w.MousePressed = true
@@ -102,37 +95,30 @@ func (w *Weapon) Update() {
 	}
 }
 
-func (w *Weapon) PlaySound() {
+func (w *Pistol) PlaySound() {
 	w.Sound.Rewind()
 	w.Sound.Play()
 }
 
-var soundPlaying = false
-
-func (w *Weapon) RenderCurrentFrame(screen *ebiten.Image)  {
-	x := 0
-
-	pos := w.CurrenFramePosition /4
-
-	log.Println(pos)
-
-	if pos >= 0 && pos < 2 {
+func (w *Pistol) RenderCurrentFrame(screen *ebiten.Image)  {
+	var x int
+	if w.CurrenFramePosition >= 0 && w.CurrenFramePosition < 8 {
 		x = 0
 	}
 
-	if pos >= 2 && pos < 4 {
+	if w.CurrenFramePosition >= 8 && w.CurrenFramePosition < 16 {
 		x = 1
 	}
 
-	if pos >= 4 && pos < 6 {
+	if w.CurrenFramePosition >= 16 && w.CurrenFramePosition < 24 {
 		x = 2
 	}
 
-	if pos >= 6 && pos < 8 {
+	if w.CurrenFramePosition >= 24 && w.CurrenFramePosition < 32 {
 		x = 3
 	}
 
-	if pos >= 8 {
+	if w.CurrenFramePosition >= 32 {
 		x = 4
 	}
 
