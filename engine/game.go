@@ -72,6 +72,8 @@ type Game struct {
 	level1 *audio.Player
 
 	menu *MainMenu
+
+	weapon *Weapon
 }
 
 func NewGame() *Game {
@@ -131,6 +133,8 @@ func (g *Game) init() {
 	if err != nil {
 		panic(err)
 	}
+
+	g.weapon = NewWeapon()
 }
 
 func (g *Game) Update() error {
@@ -145,6 +149,7 @@ func (g *Game) Update() error {
 
 		// handle input
 		g.handleInput()
+		g.weapon.Update()
 	}
 
 	if level == 0 {
@@ -154,6 +159,8 @@ func (g *Game) Update() error {
 
 	return nil
 }
+
+var test = false
 
 func (g *Game) Draw(screen *ebiten.Image) {
 	g.view = screen
@@ -202,11 +209,7 @@ func (g *Game) Draw(screen *ebiten.Image) {
 			}
 		}
 
-		skullOp := &ebiten.DrawImageOptions{}
-		skullOp.GeoM.Scale(2, 2)
-		
-		skullOp.GeoM.Translate((screenWidth/2)-40, screenHeight-70)
-		g.view.DrawImage(GetEbitenImage(images.Images_Fist), skullOp)
+		g.weapon.RenderCurrentFrame(screen)
 	} else {
 		// render the menu
 		g.menu.Render(screen)
@@ -225,6 +228,7 @@ func Play() {
 
 	ebiten.SetWindowSize(screenWidth, screenHeight)
 	ebiten.SetWindowTitle("Doom MT")
+
 	if err := ebiten.RunGame(NewGame()); err != nil {
 		log.Fatal(err)
 	}
