@@ -12,12 +12,12 @@ import (
 	"github.com/matt9mg/doom/music"
 	"image"
 	"image/color"
+	_ "image/jpeg"
 	"log"
 	"math"
 	"math/rand"
 	"path/filepath"
 	"runtime"
-	_ "image/jpeg"
 )
 
 type Mode int
@@ -41,7 +41,7 @@ type Game struct {
 	audioContext *audio.Context
 	mode         Mode
 
-	leve1Map1    *audio.Player
+	leve1Map1 *audio.Player
 
 	floor *ebiten.Image
 
@@ -163,7 +163,17 @@ func (g *Game) Update() error {
 			g.weapons.ChangeWeapon(3)
 		}
 
+		if inpututil.IsKeyJustPressed(ebiten.KeyF) == true {
+			g.weapons.History = g.weapons.CurrentWeapon
+			g.weapons.ChangeWeapon(4)
+		}
+
 		g.weapons.CurrentWeapon.Update()
+
+		if inpututil.IsKeyJustReleased(ebiten.KeyF) == true {
+			g.weapons.CurrentWeapon = g.weapons.History
+			g.weapons.History = nil
+		}
 	}
 
 	if level == 0 {
@@ -248,7 +258,6 @@ func Play() {
 	}
 }
 
-
 func (s *SpriteBatch) draw(texture *ebiten.Image, destinationRectangle *image.Rectangle, sourceRectangle *image.Rectangle, color *color.RGBA) {
 	if texture == nil || destinationRectangle == nil || sourceRectangle == nil {
 		return
@@ -286,7 +295,6 @@ func (s *SpriteBatch) draw(texture *ebiten.Image, destinationRectangle *image.Re
 	view := s.g.view
 	view.DrawImage(destTexture, op)
 }
-
 
 func (g *Game) createSpriteLevels() []*Level {
 	// create empty "level" for all sprites to render using similar slice methods as walls
@@ -397,7 +405,6 @@ func (g *Game) createLevels(numLevels int) ([]*Level, *HorLevel) {
 
 	return levelArr, horizontalLevel
 }
-
 
 func (g *Game) handleInput() {
 	forward := false

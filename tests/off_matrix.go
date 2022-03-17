@@ -1,12 +1,12 @@
-/*package main
+package main
 
 import (
 	"bytes"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/audio"
-	"github.com/hajimehoshi/ebiten/v2/audio/wav"
+	"github.com/hajimehoshi/ebiten/v2/audio/mp3"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
-	"github.com/matt9mg/doom/images/weapons"
+	"github.com/matt9mg/doom/images"
 	"github.com/matt9mg/doom/music"
 	"image"
 	_ "image/png"
@@ -23,7 +23,6 @@ var (
 	runnerImage  *ebiten.Image
 	audioContext = audio.NewContext(sampleRate)
 	pistolSound  *audio.Player
-	activeSound  *audio.Player
 )
 
 type Game struct {
@@ -47,72 +46,34 @@ func (g *Game) Update() error {
 
 	return nil
 }
-
-var x0 = 0
-var y0 = 206
-var x1 = 122
-var y1 = 0
-var idle int
-var minus float64
+var x0, y0, x1, y1 int
 
 func (g *Game) Draw(screen *ebiten.Image) {
 	if g.count >= 0 && g.count < 12 {
-		minus = 0.00
 		x0 = 0
-		y0 = 178
-		x1 = 306
-		y1 = 0
-
-		//idle
-		if pistolSound.IsPlaying() == false {
-			if activeSound.IsPlaying() == true {
-				activeSound.Pause()
-			}
-			pistolSound.Rewind()
-			pistolSound.Play()
-		}
-
-		if idle%15 == 0 {
-			x0 = 306
-			y0 = 178
-			x1 = 612
-			y1 = 0
-		}
-
-		idle++
-	}
-
-	if g.count >= 12 && g.count < 14 {
-		minus = 100.00
-		x0 = 612
-		y0 = 178
-		x1 = 918
+		y0 = 150
+		x1 = 154
 		y1 = 0
 	}
 
-	if g.count >= 14 {
-		minus = 100.00
-		x0 = 900
-		y0 = 178
-		x1 = 1300
+	if g.count >= 12 {
+		x0 = 208
+		y0 = 150
+		x1 = 302
 		y1 = 0
 	}
 
 	if mousePressed == true {
-		if pistolSound.IsPlaying() == true {
-			pistolSound.Pause()
-		}
-
-		if activeSound.IsPlaying() == false {
-			activeSound.Rewind()
-			activeSound.Play()
+		if pistolSound.IsPlaying() == false {
+			pistolSound.Rewind()
+			pistolSound.Play()
 		}
 	}
 
 	log.Println(g.count)
 	screen.Clear()
 	op := &ebiten.DrawImageOptions{}
-	op.GeoM.Translate((screenWidth/2)-70, (screenHeight-175) + minus)
+	op.GeoM.Translate((screenWidth/2)-70, screenHeight-175)
 
 	screen.DrawImage(runnerImage.SubImage(image.Rect(x0, y0, x1, y1)).(*ebiten.Image), op)
 }
@@ -122,7 +83,7 @@ func (g *Game) Layout(outsideWidth, outsideHeight int) (int, int) {
 }
 
 func (g *Game) init() {
-	pistol, err := wav.Decode(audioContext, bytes.NewReader(music.Music_chainsaw_idle))
+	pistol, err := mp3.Decode(audioContext, bytes.NewReader(music.Music_middle_finger))
 
 	if err != nil {
 		log.Fatal(err)
@@ -132,22 +93,10 @@ func (g *Game) init() {
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	sound, err := wav.Decode(audioContext, bytes.NewReader(music.Music_chainsaw_full))
-
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	activeSound, err = audioContext.NewPlayer(sound)
-
-	if err != nil {
-		log.Fatal(err)
-	}
 }
 
 func main() {
-	img, _, err := image.Decode(bytes.NewReader(images.Image_chainsaw))
+	img, _, err := image.Decode(bytes.NewReader(images.Image_middle_finger))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -163,4 +112,3 @@ func main() {
 		log.Fatal(err)
 	}
 }
-*/
