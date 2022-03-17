@@ -18,10 +18,13 @@ type WeaponInterface interface {
 func LoadWeapons() *Weapons {
 	pistol := NewPistol()
 	shotgun := NewShotgun()
+	chainsaw := NewChainsaw()
+
 	return &Weapons{
 		Weapons: []WeaponInterface{
 			pistol,
 			shotgun,
+			chainsaw,
 		},
 		CurrentWeapon: pistol,
 	}

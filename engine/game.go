@@ -159,6 +159,10 @@ func (g *Game) Update() error {
 			g.weapons.ChangeWeapon(2)
 		}
 
+		if inpututil.IsKeyJustPressed(ebiten.Key3) == true {
+			g.weapons.ChangeWeapon(3)
+		}
+
 		g.weapons.CurrentWeapon.Update()
 	}
 
