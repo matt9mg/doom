@@ -6,6 +6,7 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/audio"
 	"github.com/hajimehoshi/ebiten/v2/audio/mp3"
+	"github.com/hajimehoshi/ebiten/v2/audio/vorbis"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
 	"github.com/matt9mg/doom/images"
@@ -33,7 +34,11 @@ const (
 )
 
 var (
-	audioContext = audio.NewContext(sampleRate)
+	audioContext  = audio.NewContext(sampleRate)
+	igas, _       = vorbis.Decode(audioContext, bytes.NewReader(music.Music_IGAS))
+	igasPlayer, _ = audioContext.NewPlayer(igas)
+	pickup, _       = vorbis.Decode(audioContext, bytes.NewReader(music.Music_PU1))
+	pickupPlayer, _ = audioContext.NewPlayer(pickup)
 )
 
 type Game struct {
@@ -75,6 +80,12 @@ type Game struct {
 	menu *MainMenu
 
 	weapons *Weapons
+
+	// for debugging
+	DebugX         int
+	DebugY         int
+	DebugOnce      bool
+	debugCrossHair *ebiten.Image
 }
 
 func NewGame() *Game {
@@ -136,7 +147,18 @@ func (g *Game) init() {
 	}
 
 	g.weapons = LoadWeapons()
+
+	// for debugging
+	//g.DebugOnce = true
+	g.DebugX = -1
+	g.DebugY = -1
+	g.debugCrossHair = GetEbitenImage(images.Image_Cross_Hair)
 }
+
+var (
+	chainsawPickedUp bool = false
+	shotgunPickUp bool = false
+)
 
 func (g *Game) Update() error {
 	if level == 1 {
@@ -146,6 +168,7 @@ func (g *Game) Update() error {
 		if err != nil {
 			panic(err)
 		}
+
 		g.updateSprites()
 
 		// handle input
@@ -165,7 +188,32 @@ func (g *Game) Update() error {
 
 		if inpututil.IsKeyJustPressed(ebiten.KeyF) == true {
 			g.weapons.History = g.weapons.CurrentWeapon
-			g.weapons.ChangeWeapon(4)
+			g.weapons.CurrentWeapon = g.weapons.TheBird
+		}
+
+		if int(g.camera.pos.X) == 21 && int(g.camera.pos.Y) == 21 && chainsawPickedUp == false {
+			chainsawPickedUp = true
+			g.weapons.AddChainsaw()
+			g.mapObj.RemoveSprite("chainsaw")
+
+			if igasPlayer.IsPlaying() == false {
+				igasPlayer.Rewind()
+				igasPlayer.Play()
+			}
+		}
+
+		log.Println(g.camera.pos.X)
+		log.Println(g.camera.pos.Y)
+
+		if int(g.camera.pos.X) == 1 && int(g.camera.pos.Y) == 1 && shotgunPickUp == false {
+			shotgunPickUp = true
+			g.weapons.AddShotGun()
+			g.mapObj.RemoveSprite("shotgun")
+
+			if pickupPlayer.IsPlaying() == false {
+				pickupPlayer.Rewind()
+				pickupPlayer.Play()
+			}
 		}
 
 		g.weapons.CurrentWeapon.Update()
@@ -234,10 +282,38 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		}
 
 		g.weapons.CurrentWeapon.RenderCurrentFrame(screen)
+
+		ops := &ebiten.DrawImageOptions{}
+		ops.GeoM.Scale(0.1, 0.1)
+
+		ops.GeoM.Translate((screenWidth/2)-53, (screenHeight/2)-1)
+
+		g.view.DrawImage(g.debugCrossHair, ops)
 	} else {
 		// render the menu
 		g.menu.Render(screen)
 	}
+
+	if g.DebugOnce {
+		// end DebugOnce after one loop
+		g.DebugOnce = false
+	}
+
+	// draw for debugging
+	if g.DebugX >= 0 && g.DebugY >= 0 {
+		fX := float64(g.DebugX)
+		fY := float64(g.DebugY)
+		// draw a red translucent dot at the debug point
+		ebitenutil.DrawLine(g.view, fX-0.5, fY-0.5, fX+0.5, fY+0.5, color.RGBA{255, 0, 0, 150})
+
+		// draw two red vertical lines focusing on point
+		ebitenutil.DrawLine(g.view, fX-0.5, fY+5, fX+0.5, fY+25, color.RGBA{255, 0, 0, 150})
+		ebitenutil.DrawLine(g.view, fX-0.5, fY-25, fX+0.5, fY-5, color.RGBA{255, 0, 0, 150})
+	}
+
+	// FPS/TPS counter
+	fps := fmt.Sprintf("FPS: %f\nTPS: %f/%v", ebiten.CurrentFPS(), ebiten.CurrentTPS(), ebiten.MaxTPS())
+	ebitenutil.DebugPrint(g.view, fps)
 }
 
 func (g *Game) Layout(outsideWidth, outsideHeight int) (int, int) {
@@ -292,6 +368,17 @@ func (s *SpriteBatch) draw(texture *ebiten.Image, destinationRectangle *image.Re
 		op.ColorM.Scale(float64(color.R)/255, float64(color.G)/255, float64(color.B)/255, float64(color.A)/255)
 	}
 
+	if s.g.DebugX > destinationRectangle.Min.X && s.g.DebugX <= destinationRectangle.Max.X &&
+		s.g.DebugY > destinationRectangle.Min.Y && s.g.DebugY <= destinationRectangle.Max.Y {
+
+		for texNum, tex := range s.g.tex.Textures {
+			if tex == texture {
+				s.g.DebugPrintfOnce("[draw@%v,%v]: %v | %v < %v * %v,%v\n", s.g.DebugX, s.g.DebugY, destinationRectangle, texNum, sourceRectangle, scaleX, scaleY)
+				return
+			}
+		}
+	}
+
 	view := s.g.view
 	view.DrawImage(destTexture, op)
 }
@@ -315,13 +402,10 @@ func (g *Game) loadContent() {
 	// Create a new SpriteBatch, which can be used to draw textures.
 	g.spriteBatch = &SpriteBatch{g: g}
 
-	// TODO: use loadContent to load your game content here
-	g.tex.Textures = make([]*ebiten.Image, 16)
-
 	g.spriteBatch = &SpriteBatch{g: g}
 
 	// TODO: use loadContent to load your game content here
-	g.tex.Textures = make([]*ebiten.Image, 16)
+	g.tex.Textures = make([]*ebiten.Image, 22)
 
 	g.tex.Textures[0] = getTextureFromFile("wall.png")
 	g.tex.Textures[1] = getTextureFromFile("left_bot_house.png")
@@ -337,8 +421,15 @@ func (g *Game) loadContent() {
 
 	g.tex.Textures[15] = getSpriteFromFile("mt.png")
 
+	// monsters
+	g.tex.Textures[16] = getSpriteFromFile("DEMPA1.png")
+
+	// ground weapons
+	g.tex.Textures[20] = getSpriteFromFile("floor_chainsaw.png")
+	g.tex.Textures[21] = getSpriteFromFile("floor_shotgun.png")
+
 	// just setting the grass texture apart from the rest since it gets special handling
-	g.floorLvl.TexRGBA = make([]*image.NRGBA, 1)
+	g.floorLvl.TexRGBA = make([]*image.NRGBA, 2)
 	g.floorLvl.TexRGBA[0] = getNRGBAFromFile("floor2.png")
 
 	floor, _, err := image.Decode(bytes.NewReader(images.Images_Floor))
@@ -444,21 +535,21 @@ func (g *Game) handleInput() {
 			fmt.Printf("mouse left clicked: (%v, %v)\n", g.mouseX, g.mouseY)
 
 			// using left click for debugging graphical issues
-			/*if g.DebugX == -1 && g.DebugY == -1 {
+			if g.DebugX == -1 && g.DebugY == -1 {
 				// only allow setting once between clears to debounce
 				g.DebugX = g.mouseX
 				g.DebugY = g.mouseY
 				g.DebugOnce = true
-			}*/
+			}
 		}
 
 		if ebiten.IsMouseButtonPressed(ebiten.MouseButtonRight) {
 			fmt.Printf("mouse right clicked: (%v, %v)\n", g.mouseX, g.mouseY)
 
 			// using right click to clear the debugging flag
-			/*g.DebugX = -1
+			g.DebugX = -1
 			g.DebugY = -1
-			g.DebugOnce = false*/
+			g.DebugOnce = false
 		}
 
 	case MouseModeMove:
@@ -503,6 +594,7 @@ func (g *Game) handleInput() {
 				g.camera.Pitch(dy)
 			}
 		}
+
 	}
 
 	if ebiten.IsKeyPressed(ebiten.KeyA) || ebiten.IsKeyPressed(ebiten.KeyLeft) {
@@ -553,6 +645,18 @@ func (g *Game) updateSprites() {
 	// Testing animated sprite movement
 	sprites := g.mapObj.GetSprites()
 
+	if ebiten.IsMouseButtonPressed(ebiten.MouseButtonLeft) {
+		fmt.Printf("mouse left clicked: (%v, %v)\n", g.mouseX, g.mouseY)
+
+		// using left click for debugging graphical issues
+		if g.DebugX == -1 && g.DebugY == -1 {
+			// only allow setting once between clears to debounce
+			g.DebugX = g.mouseX
+			g.DebugY = g.mouseY
+			g.DebugOnce = true
+		}
+	}
+
 	for _, s := range sprites {
 		if s.Vx != 0 || s.Vy != 0 {
 			// TODO: use ebiten.CurrentTPS() to determine actual velicity amount to move sprite per tick
@@ -577,10 +681,6 @@ func (g *Game) updateSprites() {
 				// simple collision check to prevent phasing through walls
 				s.X += s.Vx
 				s.Y += s.Vy
-			} else {
-				// for testing purposes, letting the sample sprite ping pong off walls in somewhat random direction
-				s.Vx = randFloat(-0.03, 0.03)
-				s.Vy = randFloat(-0.03, 0.03)
 			}
 		}
 		s.Update()
@@ -589,4 +689,11 @@ func (g *Game) updateSprites() {
 
 func randFloat(min, max float64) float64 {
 	return min + rand.Float64()*(max-min)
+}
+
+// DebugPrintfOnce prints info to screen only one time until g.DebugFlag cleared again
+func (g *Game) DebugPrintfOnce(format string, a ...interface{}) {
+	if g.DebugOnce {
+		fmt.Printf(format, a...)
+	}
 }

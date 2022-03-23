@@ -8,6 +8,7 @@ type Weapons struct {
 	Weapons       []WeaponInterface
 	CurrentWeapon WeaponInterface
 	History       WeaponInterface
+	TheBird       WeaponInterface
 }
 
 type WeaponInterface interface {
@@ -18,19 +19,28 @@ type WeaponInterface interface {
 
 func LoadWeapons() *Weapons {
 	pistol := NewPistol()
-	shotgun := NewShotgun()
-	chainsaw := NewChainsaw()
+
 	fuckoff := NewFuckOff()
 
 	return &Weapons{
 		Weapons: []WeaponInterface{
 			pistol,
-			shotgun,
-			chainsaw,
-			fuckoff,
 		},
 		CurrentWeapon: pistol,
+		TheBird: fuckoff,
 	}
+}
+
+func (w *Weapons) AddChainsaw() {
+	chaisaw := NewChainsaw()
+	w.Weapons = append(w.Weapons, chaisaw)
+	w.CurrentWeapon = chaisaw
+}
+
+func (w *Weapons) AddShotGun()  {
+	shotgun := NewShotgun()
+	w.Weapons = append(w.Weapons, shotgun)
+	w.CurrentWeapon = shotgun
 }
 
 func (w *Weapons) ChangeWeapon(index int) {

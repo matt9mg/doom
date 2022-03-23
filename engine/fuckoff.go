@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/audio"
-	"github.com/hajimehoshi/ebiten/v2/audio/mp3"
+	"github.com/hajimehoshi/ebiten/v2/audio/vorbis"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
 	"github.com/matt9mg/doom/images"
 	"github.com/matt9mg/doom/music"
@@ -29,7 +29,7 @@ func NewFuckOff() *FuckOff {
 		log.Fatal(err)
 	}
 
-	finger, err := mp3.Decode(audioContext, bytes.NewReader(music.Music_middle_finger))
+	finger, err := vorbis.Decode(audioContext, bytes.NewReader(music.Music_Fuck1))
 
 	if err != nil {
 		panic(err)
@@ -94,7 +94,7 @@ func (w *FuckOff) RenderCurrentFrame(screen *ebiten.Image) {
 		w.PlaySound()
 	}
 
-	if w.CurrenFramePosition > 100 {
+	if w.CurrenFramePosition > 10 {
 		x = 1
 	}
 

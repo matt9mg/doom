@@ -17,15 +17,19 @@ type Sprite struct {
 	animCounter    int
 	texNum, lenTex int
 	textures       []*ebiten.Image
+	PickUp         bool
+	PickupName     string
 }
 
-func NewSprite(x, y float64, img *ebiten.Image, uSize int) *Sprite {
+func NewSprite(x, y float64, img *ebiten.Image, uSize int, pickup bool, pickupName string) *Sprite {
 	s := &Sprite{}
 	s.X, s.Y = x, y
 	s.Scale = 1.0
 	s.texNum = 0
 	s.lenTex = 1
 	s.textures = make([]*ebiten.Image, s.lenTex)
+	s.PickUp = pickup
+	s.PickupName = pickupName
 
 	s.W, s.H = img.Size()
 	if s.W != uSize || s.H != uSize {
@@ -120,4 +124,8 @@ func (s *Sprite) Update() {
 
 func (s *Sprite) GetTexture() *ebiten.Image {
 	return s.textures[s.texNum]
+}
+
+func (s *Sprite) ClearTexture()  {
+	s.textures[0].Clear()
 }
