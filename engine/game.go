@@ -87,7 +87,7 @@ type Game struct {
 	DebugOnce      bool
 	debugCrossHair *ebiten.Image
 
-	hud *ebiten.Image
+	hud *Hud
 }
 
 func NewGame() *Game {
@@ -150,13 +150,13 @@ func (g *Game) init() {
 
 	g.weapons = LoadWeapons()
 
-	g.hud = GetEbitenImage(images.Images_hud)
-
 	// for debugging
 	//g.DebugOnce = true
 	g.DebugX = -1
 	g.DebugY = -1
 	g.debugCrossHair = GetEbitenImage(images.Image_Cross_Hair)
+
+	g.hud = LoadHud()
 }
 
 var (
@@ -195,7 +195,10 @@ func (g *Game) Update() error {
 			g.weapons.CurrentWeapon = g.weapons.TheBird
 		}
 
+		smile := false
+
 		if int(g.camera.pos.X) == 21 && int(g.camera.pos.Y) == 21 && chainsawPickedUp == false {
+			smile = true
 			chainsawPickedUp = true
 			g.weapons.AddChainsaw()
 			g.mapObj.RemoveSprite("chainsaw")
@@ -207,6 +210,7 @@ func (g *Game) Update() error {
 		}
 
 		if int(g.camera.pos.X) == 1 && int(g.camera.pos.Y) == 1 && shotgunPickUp == false {
+			smile = true
 			shotgunPickUp = true
 			g.weapons.AddShotGun()
 			g.mapObj.RemoveSprite("shotgun")
@@ -219,10 +223,16 @@ func (g *Game) Update() error {
 
 		g.weapons.CurrentWeapon.Update()
 
+		if inpututil.IsKeyJustPressed(ebiten.KeyF) == true {
+			smile = true
+		}
+
 		if inpututil.IsKeyJustReleased(ebiten.KeyF) == true {
 			g.weapons.CurrentWeapon = g.weapons.History
 			g.weapons.History = nil
 		}
+
+		g.hud.Update(smile)
 	}
 
 	if level == 0 {
@@ -291,11 +301,8 @@ func (g *Game) Draw(screen *ebiten.Image) {
 
 		g.view.DrawImage(g.debugCrossHair, ops)*/
 
-		ops := &ebiten.DrawImageOptions{}
-		ops.GeoM.Scale(4.5,4)
+		g.hud.RenderCurrentFrame(screen)
 
-		ops.GeoM.Translate(0, (screenHeight/2)+319)
-		g.view.DrawImage(g.hud, ops)
 	} else {
 		// render the menu
 		g.menu.Render(screen)
