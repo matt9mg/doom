@@ -152,7 +152,7 @@ func (w *Chainsaw) RenderCurrentFrame(screen *ebiten.Image) {
 	}
 
 	op := &ebiten.DrawImageOptions{}
-	op.GeoM.Translate((screenWidth/2)-150, (screenHeight-175) + minus)
+	op.GeoM.Translate((screenWidth/2)-150, (screenHeight-305) + minus)
 
 	screen.DrawImage(w.Sprite.SubImage(image.Rect(w.Frames[x].x0, w.Frames[x].y0, w.Frames[x].x1, w.Frames[x].y1)).(*ebiten.Image), op)
 }

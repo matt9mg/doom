@@ -138,7 +138,7 @@ func (w *Shotgun) RenderCurrentFrame(screen *ebiten.Image)  {
 	}
 
 	op := &ebiten.DrawImageOptions{}
-	op.GeoM.Translate((screenWidth/2)-70, (screenHeight - 110) - minus)
+	op.GeoM.Translate((screenWidth/2)-70, (screenHeight - 240) - minus)
 
 	screen.DrawImage(w.Sprite.SubImage(image.Rect(w.Frames[x].x0, w.Frames[x].y0, w.Frames[x].x1, w.Frames[x].y1)).(*ebiten.Image), op)
 }

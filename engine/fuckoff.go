@@ -100,7 +100,7 @@ func (w *FuckOff) RenderCurrentFrame(screen *ebiten.Image) {
 
 	op := &ebiten.DrawImageOptions{}
 	op.GeoM.Scale(2,2)
-	op.GeoM.Translate((screenWidth/2)-160, screenHeight-300)
+	op.GeoM.Translate((screenWidth/2)-160, screenHeight-420)
 
 	screen.DrawImage(w.Sprite.SubImage(image.Rect(w.Frames[x].x0, w.Frames[x].y0, w.Frames[x].x1, w.Frames[x].y1)).(*ebiten.Image), op)
 }

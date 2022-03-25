@@ -86,6 +86,8 @@ type Game struct {
 	DebugY         int
 	DebugOnce      bool
 	debugCrossHair *ebiten.Image
+
+	hud *ebiten.Image
 }
 
 func NewGame() *Game {
@@ -148,6 +150,8 @@ func (g *Game) init() {
 
 	g.weapons = LoadWeapons()
 
+	g.hud = GetEbitenImage(images.Images_hud)
+
 	// for debugging
 	//g.DebugOnce = true
 	g.DebugX = -1
@@ -201,9 +205,6 @@ func (g *Game) Update() error {
 				igasPlayer.Play()
 			}
 		}
-
-		log.Println(g.camera.pos.X)
-		log.Println(g.camera.pos.Y)
 
 		if int(g.camera.pos.X) == 1 && int(g.camera.pos.Y) == 1 && shotgunPickUp == false {
 			shotgunPickUp = true
@@ -283,12 +284,18 @@ func (g *Game) Draw(screen *ebiten.Image) {
 
 		g.weapons.CurrentWeapon.RenderCurrentFrame(screen)
 
-		ops := &ebiten.DrawImageOptions{}
+		/*ops := &ebiten.DrawImageOptions{}
 		ops.GeoM.Scale(0.1, 0.1)
 
-		ops.GeoM.Translate((screenWidth/2)-53, (screenHeight/2)-1)
+		ops.GeoM.Translate(screenWidth/2, (screenHeight/2)-1)
 
-		g.view.DrawImage(g.debugCrossHair, ops)
+		g.view.DrawImage(g.debugCrossHair, ops)*/
+
+		ops := &ebiten.DrawImageOptions{}
+		ops.GeoM.Scale(4.5,4)
+
+		ops.GeoM.Translate(0, (screenHeight/2)+319)
+		g.view.DrawImage(g.hud, ops)
 	} else {
 		// render the menu
 		g.menu.Render(screen)
