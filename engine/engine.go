@@ -733,11 +733,12 @@ func (c *Camera) getValidMove(moveX, moveY float64, checkAlternate bool) (float6
 	intersectPoints := [][2]float64{}
 	for _, borderLine := range c.collisionMap {
 		// TODO: only check intersection of nearby wall cells instead of all of them
-
 		if px, py, ok := Intersection(moveLine, borderLine); ok {
 			intersectPoints = append(intersectPoints, [2]float64{px, py})
 		}
 	}
+
+
 
 	if len(intersectPoints) > 0 {
 		// find the point closest to the start position

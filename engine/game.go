@@ -151,7 +151,7 @@ func (g *Game) init() {
 	g.weapons = LoadWeapons()
 
 	// for debugging
-	//g.DebugOnce = true
+	g.DebugOnce = false
 	g.DebugX = -1
 	g.DebugY = -1
 	g.debugCrossHair = GetEbitenImage(images.Image_Cross_Hair)
@@ -167,6 +167,7 @@ var (
 func (g *Game) Update() error {
 	if level == 1 {
 		err := g.menu.IntroMusic.Close()
+
 		g.level1.Play()
 
 		if err != nil {
@@ -545,7 +546,7 @@ func (g *Game) handleInput() {
 	switch g.mouseMode {
 	case MouseModeCursor:
 		g.mouseX, g.mouseY = ebiten.CursorPosition()
-		if ebiten.IsMouseButtonPressed(ebiten.MouseButtonLeft) {
+		/*if ebiten.IsMouseButtonPressed(ebiten.MouseButtonLeft) {
 			fmt.Printf("mouse left clicked: (%v, %v)\n", g.mouseX, g.mouseY)
 
 			// using left click for debugging graphical issues
@@ -564,7 +565,7 @@ func (g *Game) handleInput() {
 			g.DebugX = -1
 			g.DebugY = -1
 			g.DebugOnce = false
-		}
+		}*/
 
 	case MouseModeMove:
 		x, y := ebiten.CursorPosition()
@@ -658,18 +659,6 @@ func (g *Game) handleInput() {
 func (g *Game) updateSprites() {
 	// Testing animated sprite movement
 	sprites := g.mapObj.GetSprites()
-
-	if ebiten.IsMouseButtonPressed(ebiten.MouseButtonLeft) {
-		fmt.Printf("mouse left clicked: (%v, %v)\n", g.mouseX, g.mouseY)
-
-		// using left click for debugging graphical issues
-		if g.DebugX == -1 && g.DebugY == -1 {
-			// only allow setting once between clears to debounce
-			g.DebugX = g.mouseX
-			g.DebugY = g.mouseY
-			g.DebugOnce = true
-		}
-	}
 
 	for _, s := range sprites {
 		if s.Vx != 0 || s.Vy != 0 {
